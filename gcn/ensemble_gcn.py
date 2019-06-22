@@ -1,8 +1,7 @@
+
 import random
 import time
-import tensorflow as tf
 from utils import *
-from models import GCN, MLP
 import os
 from scipy import sparse
 from train import get_trained_gcn
@@ -19,16 +18,14 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from helper import *
 """
 
- Moving the nodes around experiment
+ Ensemble GCN
 
 """
-NUM_CROSS_VAL = 4
-trials = 2
-CORES = 8
-# Train the GCN
+NUM_CROSS_VAL = 1
+trials = 1
 SEED = 43
-initial_num_labels = 10
-THRESHOLD = 0.5
+M = 10  # Number of sampled weights (Ensemble)
+initial_num_labels = 5
 dataset = 'cora'
 adj, initial_features, _, _, _, _, _, _, labels = load_data(dataset)
 ground_truth = np.argmax(labels, axis=1)
@@ -38,14 +35,11 @@ features_sparse = preprocess_features(initial_features)
 feature_matrix = features_sparse.todense()
 n = feature_matrix.shape[0]
 number_labels = labels.shape[1]
-
-list_new_posititons = random.sample(list(range(n)), 500)
-#list_new_posititons = range(n)
-
-test_split = StratifiedShuffleSplit(n_splits=NUM_CROSS_VAL, test_size=0.37, random_state=SEED)
+test_split = StratifiedShuffleSplit(
+    n_splits=NUM_CROSS_VAL, test_size=0.37, random_state=SEED)
 test_split.get_n_splits(labels, labels)
-seed_list = [1, 2, 3, 4]
-
+seed_list = [1]
+sigma = 0.1
 for train_index, test_index in test_split.split(labels, labels):
     print(test_index.shape)
     y_train, y_val, y_test, train_mask, val_mask, test_mask = get_split(n, train_index, test_index, labels,
@@ -55,9 +49,34 @@ for train_index, test_index in test_split.split(labels, labels):
         seed = seed_list[trial]
         w_0, w_1, A_tilde, gcn_soft = get_trained_gcn(seed, dataset, y_train, y_val, y_test, train_mask, val_mask,
                                                       test_mask)
-
-        # Get prediction by the GCN
+        vec_weights_0 = w_0.ravel()
+        vec_weights_1 = w_1.ravel()
+        Gamma = 1/(np.sqrt(2)*sigma)
         initial_gcn = gcn_soft(sparse_to_tuple(features_sparse))
-        print(w_0)
+        full_pred_gcn = np.argmax(initial_gcn, axis=1)
 
-     
+        y_pred = np.zeros((M, len(test_index), number_labels))
+        print("ACC initial pred : " +
+              str(accuracy_score(ground_truth[test_index], full_pred_gcn[test_index])))
+        for j in range(M):
+            theta_j0_0 = vec_weights_0 + sigma * \
+                np.random.normal(0, 1, len(vec_weights_0))
+            theta_j0_1 = vec_weights_1 + sigma * \
+                np.random.normal(0, 1, len(vec_weights_1))
+            theta_j0 = [theta_j0_0, theta_j0_1]
+
+            w_0, w_1, A_tilde, gcn_soft = get_trained_gcn(seed, dataset, y_train, y_val, y_test, train_mask, val_mask,
+                                                          test_mask, ensemble=True, theta=theta_j0, Gamma=Gamma)
+            # Get prediction by the GCN
+            softmax_output = gcn_soft(sparse_to_tuple(features_sparse))
+            full_pred_gcn = np.argmax(softmax_output, axis=1)
+
+            print("ACC ensemble pred : " +
+                  str(accuracy_score(ground_truth[test_index], full_pred_gcn[test_index])))
+            # Compute \hat{y}
+            y_pred[j] = softmax_output[test_index]
+        average_softmax = np.average(y_pred, axis=0)
+        print(average_softmax.shape)
+        full_pred_gcn = np.argmax(average_softmax, axis=1)
+        print("ACC average ensemble pred : " +
+              str(accuracy_score(ground_truth[test_index], full_pred_gcn)))

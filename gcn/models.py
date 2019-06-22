@@ -50,7 +50,8 @@ class Model(object):
         self.outputs = self.activations[-1]
 
         # Store model variables for easy access
-        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
+        variables = tf.get_collection(
+            tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
         self.vars = {var.name: var for var in variables}
 
         # Build metrics
@@ -84,75 +85,45 @@ class Model(object):
         print("Model restored from file: %s" % save_path)
 
 
-class MLP(Model):
-    def __init__(self, placeholders, input_dim, **kwargs):
-        super(MLP, self).__init__(**kwargs)
-
-        self.inputs = placeholders['features']
-        self.input_dim = input_dim
-        # self.input_dim = self.inputs.get_shape().as_list()[1]  # To be supported in future Tensorflow versions
-        self.output_dim = placeholders['labels'].get_shape().as_list()[1]
-        self.placeholders = placeholders
-
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
-
-        self.build()
-
-    def _loss(self):
-        # Weight decay loss
-        for var in self.layers[0].vars.values():
-            self.loss += FLAGS.weight_decay * tf.nn.l2_loss(var)
-
-        # Cross entropy error
-        self.loss += masked_softmax_cross_entropy(self.outputs, self.placeholders['labels'],
-                                                  self.placeholders['labels_mask'])
-
-    def _accuracy(self):
-        self.accuracy = masked_accuracy(self.outputs, self.placeholders['labels'],
-                                        self.placeholders['labels_mask'])
-
-    def _build(self):
-        self.layers.append(Dense(input_dim=self.input_dim,
-                                 output_dim=FLAGS.hidden1,
-                                 placeholders=self.placeholders,
-                                 act=tf.nn.relu,
-                                 dropout=True,
-                                 sparse_inputs=True,
-                                 logging=self.logging))
-
-        self.layers.append(Dense(input_dim=FLAGS.hidden1,
-                                 output_dim=self.output_dim,
-                                 placeholders=self.placeholders,
-                                 act=lambda x: x,
-                                 dropout=True,
-                                 logging=self.logging))
-
-    def predict(self):
-        return tf.nn.softmax(self.outputs)
-
-
 class GCN(Model):
-    def __init__(self, placeholders, input_dim, **kwargs):
+    def __init__(self, placeholders, input_dim, ensemble, theta, Gamma,  **kwargs):
         super(GCN, self).__init__(**kwargs)
-
+        self.ensemble = ensemble
+        if ensemble:
+            self.theta = theta
+            self.Gamma = Gamma
         self.inputs = placeholders['features']
         self.input_dim = input_dim
         # self.input_dim = self.inputs.get_shape().as_list()[1]  # To be supported in future Tensorflow versions
         self.output_dim = placeholders['labels'].get_shape().as_list()[1]
         self.placeholders = placeholders
         self.softmax_ouput = None
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
+        self.optimizer = tf.train.AdamOptimizer(
+            learning_rate=FLAGS.learning_rate)
 
         self.build()
 
     def _loss(self):
-        # Weight decay loss
-        for var in self.layers[0].vars.values():
-            self.loss += FLAGS.weight_decay * tf.nn.l2_loss(var)
+        if self.ensemble:
+            # Ensemble Loss
+            i = 0
+            for var in self.layers[0].vars.values():
+                self.loss += tf.math.reduce_sum(self.Gamma *
+                                                (tf.math.subtract(tf.reshape(var, [1, -1]), self.theta[i]))**2)
+                i += 1
+           
+            # Cross entropy error
+            self.loss += masked_softmax_cross_entropy(self.outputs, self.placeholders['labels'],
+                                                      self.placeholders['labels_mask'])
+        else:
 
-        # Cross entropy error
-        self.loss += masked_softmax_cross_entropy(self.outputs, self.placeholders['labels'],
-                                                  self.placeholders['labels_mask'])
+            # Weight decay loss
+            for var in self.layers[0].vars.values():
+                self.loss += FLAGS.weight_decay * tf.nn.l2_loss(var)
+            print(self.loss)
+            # Cross entropy error
+            self.loss += masked_softmax_cross_entropy(self.outputs, self.placeholders['labels'],
+                                                      self.placeholders['labels_mask'])
 
     def _accuracy(self):
         self.accuracy = masked_accuracy(self.outputs, self.placeholders['labels'],
