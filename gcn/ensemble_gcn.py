@@ -16,6 +16,7 @@ import math
 import matplotlib.pyplot as plt
 from sklearn.model_selection import StratifiedShuffleSplit
 from helper import *
+from uncertainty_helper import *
 """
 
  Ensemble GCN
@@ -24,7 +25,8 @@ from helper import *
 NUM_CROSS_VAL = 1
 trials = 1
 SEED = 43
-M = 10  # Number of sampled weights (Ensemble)
+get_uncertainty = average_divergence
+M = 2  # Number of sampled weights (Ensemble)
 initial_num_labels = 5
 dataset = 'cora'
 adj, initial_features, _, _, _, _, _, _, labels = load_data(dataset)
@@ -40,6 +42,7 @@ test_split = StratifiedShuffleSplit(
 test_split.get_n_splits(labels, labels)
 seed_list = [1]
 sigma = 0.1
+
 for train_index, test_index in test_split.split(labels, labels):
     print(test_index.shape)
     y_train, y_val, y_test, train_mask, val_mask, test_mask = get_split(n, train_index, test_index, labels,
@@ -75,8 +78,22 @@ for train_index, test_index in test_split.split(labels, labels):
                   str(accuracy_score(ground_truth[test_index], full_pred_gcn[test_index])))
             # Compute \hat{y}
             y_pred[j] = softmax_output[test_index]
+
         average_softmax = np.average(y_pred, axis=0)
-        print(average_softmax.shape)
+
         full_pred_gcn = np.argmax(average_softmax, axis=1)
         print("ACC average ensemble pred : " +
               str(accuracy_score(ground_truth[test_index], full_pred_gcn)))
+        uncertainty = []
+        for i in range(len(test_index)):
+
+            uncertainty.append(get_uncertainty(y_pred[:, i, :]))
+
+        ensemble_good = np.where(full_pred_gcn == ground_truth[test_index])[0]
+        ensemble_not = np.where(full_pred_gcn != ground_truth[test_index])[0]
+        # classifier_avg_wei_softmax
+        plt.plot(ensemble_good, [0 for _ in ensemble_good], 'o', markersize=1)
+        plt.plot(ensemble_not, [0.1 for _ in ensemble_not], 'o', markersize=1)
+        plt.plot(uncertainty)
+        plt.axis([0, 200, -0.5, 0.2])
+        plt.show()

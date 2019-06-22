@@ -111,7 +111,8 @@ class GCN(Model):
                 self.loss += tf.math.reduce_sum(self.Gamma *
                                                 (tf.math.subtract(tf.reshape(var, [1, -1]), self.theta[i]))**2)
                 i += 1
-           
+            # loss = loss/N
+            self.loss /= tf.to_float(tf.reduce_sum(self.placeholders['labels_mask']))
             # Cross entropy error
             self.loss += masked_softmax_cross_entropy(self.outputs, self.placeholders['labels'],
                                                       self.placeholders['labels_mask'])
