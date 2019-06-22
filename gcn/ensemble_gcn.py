@@ -88,7 +88,7 @@ for train_index, test_index in test_split.split(labels, labels):
         for i in range(len(test_index)):
 
             uncertainty.append(get_uncertainty(y_pred[:, i, :]))
-
+        uncertainty = np.array(uncertainty)
         ensemble_good = np.where(full_pred_gcn == ground_truth[test_index])[0]
         ensemble_not = np.where(full_pred_gcn != ground_truth[test_index])[0]
         # classifier_avg_wei_softmax
@@ -96,5 +96,5 @@ for train_index, test_index in test_split.split(labels, labels):
         # plt.plot(ensemble_not, [0.05 for _ in ensemble_not], 'o', markersize=1)
         plt.plot(uncertainty[ensemble_good])
         plt.plot(uncertainty[ensemble_not])
-        plt.axis([0, 300, -0.1, 0.1])
+       # plt.axis([0, 300, -0.1, 0.1])
         plt.show()
