@@ -92,8 +92,9 @@ for train_index, test_index in test_split.split(labels, labels):
         ensemble_good = np.where(full_pred_gcn == ground_truth[test_index])[0]
         ensemble_not = np.where(full_pred_gcn != ground_truth[test_index])[0]
         # classifier_avg_wei_softmax
-        plt.plot(ensemble_good, [0 for _ in ensemble_good], 'o', markersize=1)
-        plt.plot(ensemble_not, [0.1 for _ in ensemble_not], 'o', markersize=1)
-        plt.plot(uncertainty)
-        plt.axis([0, 200, -0.5, 0.2])
+        # plt.plot(ensemble_good, [0 for _ in ensemble_good], 'o', markersize=1)
+        # plt.plot(ensemble_not, [0.05 for _ in ensemble_not], 'o', markersize=1)
+        plt.plot(uncertainty[ensemble_good])
+        plt.plot(uncertainty[ensemble_not])
+        plt.axis([0, 300, -0.1, 0.1])
         plt.show()
