@@ -129,7 +129,6 @@ def get_trained_gcn(seed,
     test_cost, test_acc, test_duration = evaluate(features, support, y_test, test_mask, placeholders)
     print("Test set results:", "cost=", "{:.5f}".format(test_cost), "accuracy=", "{:.5f}".format(test_acc), "time=",
           "{:.5f}".format(test_duration))
-    print("NUM W" + str(len(tf.trainable_variables())))
     for w in tf.trainable_variables():
 
         if w.shape[0] == input_dim:

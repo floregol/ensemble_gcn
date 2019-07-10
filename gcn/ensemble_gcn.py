@@ -26,8 +26,8 @@ from data_partition import data_partition_random, data_partition_fixed
 dataset = 'cora'
 initial_num_labels = 20
 # NUM_CROSS_VAL = 1
-trials = 10
-SEED = 43
+trials = 1
+SEED = 4
 np.random.seed(SEED)
 get_uncertainty = average_divergence
 M = 10  # Number of sampled weights (Ensemble)
@@ -45,7 +45,7 @@ M = 10  # Number of sampled weights (Ensemble)
 # test_split.get_n_splits(labels, labels)
 seed_list = np.random.randint(1, 1e6, trials)
 
-rho_list = np.array([5e-8, 5e-12, 5e-8])
+rho_list = np.array([5e-10, 5e-8, 5e-12])
 validation_list = np.zeros(len(rho_list))
 
 for idx in range(len(rho_list)):
@@ -134,7 +134,7 @@ for idx in range(len(rho_list)):
             close_session()
        
         average_softmax = np.average(y_pred, axis=2)
-        print(y_pred.shape)
+        
         print(average_softmax.shape)
         full_pred_gcn = np.argmax(average_softmax, axis=1)
         print("ACC average ensemble pred : " + str(accuracy_score(ground_truth[test_index], full_pred_gcn[test_index])))
