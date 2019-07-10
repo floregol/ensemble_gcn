@@ -92,6 +92,7 @@ class GCN(Model):
         if ensemble:
             self.theta = theta
             self.Gamma = Gamma
+
         self.inputs = placeholders['features']
         self.input_dim = input_dim
         # self.input_dim = self.inputs.get_shape().as_list()[1]  # To be supported in future Tensorflow versions
@@ -111,8 +112,7 @@ class GCN(Model):
                 self.loss += tf.math.reduce_sum(self.Gamma *
                                                 (tf.math.subtract(tf.reshape(var, [1, -1]), self.theta[i]))**2)
                 i += 1
-            # loss = loss/N
-            self.loss /= tf.to_float(tf.reduce_sum(self.placeholders['labels_mask']))
+
             # Cross entropy error
             self.loss += masked_softmax_cross_entropy(self.outputs, self.placeholders['labels'],
                                                       self.placeholders['labels_mask'])
@@ -121,7 +121,7 @@ class GCN(Model):
             # Weight decay loss
             for var in self.layers[0].vars.values():
                 self.loss += FLAGS.weight_decay * tf.nn.l2_loss(var)
-            print(self.loss)
+
             # Cross entropy error
             self.loss += masked_softmax_cross_entropy(self.outputs, self.placeholders['labels'],
                                                       self.placeholders['labels_mask'])
@@ -148,5 +148,5 @@ class GCN(Model):
                                             logging=self.logging))
 
     def predict(self):
-        self.softmax_ouput = tf.nn.softmax(self.outputs)
-        return self.softmax_ouput
+        self.softmax_output = tf.nn.softmax(self.outputs)
+        return self.softmax_output
